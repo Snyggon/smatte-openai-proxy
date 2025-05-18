@@ -14,10 +14,21 @@ app.post('/ask', async (req, res) => {
   const userInput = req.body.message;
 
   try {
-    // Skapa tråd
-    const threadRes = await axios.post('https://api.openai.com/v1/threads', {
-      assistant_id: ASSISTANT_ID,
-      messages: [{ role: "user", content: userInput }]
+    // 1. Skapa en ny tråd
+    const thread = await axios.post('https://api.openai.com/v1/threads', {}, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v2'
+      }
+    });
+
+    const threadId = thread.data.id;
+
+    // 2. Lägg till meddelandet i tråden
+    await axios.post(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+      role: "user",
+      content: userInput
     }, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -26,10 +37,8 @@ app.post('/ask', async (req, res) => {
       }
     });
 
-    const threadId = threadRes.data.id;
-
-    // Starta run
-    await axios.post(`https://api.openai.com/v1/threads/${threadId}/runs`, {
+    // 3. Starta run med assistant_id
+    const run = await axios.post(`https://api.openai.com/v1/threads/${threadId}/runs`, {
       assistant_id: ASSISTANT_ID
     }, {
       headers: {
@@ -39,24 +48,39 @@ app.post('/ask', async (req, res) => {
       }
     });
 
-    // Vänta på svar
-    await new Promise(resolve => setTimeout(resolve, 6000));
+    const runId = run.data.id;
 
-    // Hämta meddelanden
-    const msgRes = await axios.get(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+    // 4. Vänta tills run är klar (polling)
+    let status = 'in_progress';
+    let attempts = 0;
+    while (status === 'in_progress' && attempts < 10) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const runStatus = await axios.get(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'OpenAI-Beta': 'assistants=v2'
+        }
+      });
+      status = runStatus.data.status;
+      attempts++;
+    }
+
+    if (status !== 'completed') {
+      return res.status(500).json({ error: 'Run did not complete in time.' });
+    }
+
+    // 5. Hämta svaret
+    const messages = await axios.get(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'OpenAI-Beta': 'assistants=v2'
       }
     });
 
-    const message = msgRes.data.data.find(m => m.role === 'assistant');
-
-    // 🔍 Debug: logga hela GPT-svaret
-    console.log("🧠 GPT-svar från OpenAI:", JSON.stringify(message, null, 2));
+    const message = messages.data.data.find(m => m.role === 'assistant');
+    console.log("🧠 GPT-svar:", JSON.stringify(message, null, 2));
 
     let reply = "Kunde inte hämta något svar.";
-
     if (message?.content?.length > 0 && message.content[0].type === "text") {
       reply = message.content[0].text.value;
     }
