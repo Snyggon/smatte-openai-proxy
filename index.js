@@ -14,17 +14,15 @@ app.post('/ask', async (req, res) => {
   const userInput = req.body.message;
 
   try {
-    // Skapa tråd
+    // Skapa tråd med assistant_id i body (fixar invalid_beta-felet!)
     const threadRes = await axios.post('https://api.openai.com/v1/threads', {
+      assistant_id: ASSISTANT_ID,
       messages: [{ role: "user", content: userInput }]
     }, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
         'OpenAI-Beta': 'assistants=v1'
-      },
-      params: {
-        assistant_id: ASSISTANT_ID
       }
     });
 
@@ -40,7 +38,7 @@ app.post('/ask', async (req, res) => {
       }
     });
 
-    // Vänta på svar (t.ex. 6 sekunder för säkerhets skull)
+    // Vänta på svar
     await new Promise(resolve => setTimeout(resolve, 6000));
 
     // Hämta meddelanden
@@ -60,11 +58,11 @@ app.post('/ask', async (req, res) => {
     res.json({ reply });
 
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error("💥 Fel från OpenAI:", err.response?.data || err.message);
     res.status(500).json({ error: 'Något gick fel med OpenAI.' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Proxyservern körs på port ${PORT}`);
+  console.log(`✅ Proxyservern körs på port ${PORT}`);
 });
