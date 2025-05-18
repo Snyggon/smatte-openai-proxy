@@ -14,7 +14,7 @@ app.post('/ask', async (req, res) => {
   const userInput = req.body.message;
 
   try {
-    // Skapa tråd med assistant_id i body (fixar invalid_beta-felet!)
+    // Skapa tråd
     const threadRes = await axios.post('https://api.openai.com/v1/threads', {
       assistant_id: ASSISTANT_ID,
       messages: [{ role: "user", content: userInput }]
@@ -28,13 +28,14 @@ app.post('/ask', async (req, res) => {
 
     const threadId = threadRes.data.id;
 
-    // Starta run
+    // Starta run – med rätt header!
     await axios.post(`https://api.openai.com/v1/threads/${threadId}/runs`, {
       assistant_id: ASSISTANT_ID
     }, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v1'  // <-- detta saknades tidigare!
       }
     });
 
@@ -44,7 +45,8 @@ app.post('/ask', async (req, res) => {
     // Hämta meddelanden
     const msgRes = await axios.get(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'OpenAI-Beta': 'assistants=v1'
       }
     });
 
