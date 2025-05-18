@@ -51,6 +51,7 @@ app.post('/ask', async (req, res) => {
     });
 
     const message = msgRes.data.data.find(m => m.role === 'assistant');
+    console.log("🧠 GPT-svar från OpenAI:", JSON.stringify(message, null, 2));
     let reply = "Kunde inte hämta något svar.";
 
     if (message?.content?.length > 0 && message.content[0].type === "text") {
