@@ -14,6 +14,7 @@ app.post('/ask', async (req, res) => {
   const userInput = req.body.message;
 
   try {
+    // Skapa tråd
     const threadRes = await axios.post('https://api.openai.com/v1/threads', {
       messages: [{ role: "user", content: userInput }]
     }, {
@@ -29,6 +30,7 @@ app.post('/ask', async (req, res) => {
 
     const threadId = threadRes.data.id;
 
+    // Starta run
     await axios.post(`https://api.openai.com/v1/threads/${threadId}/runs`, {
       assistant_id: ASSISTANT_ID
     }, {
@@ -38,8 +40,10 @@ app.post('/ask', async (req, res) => {
       }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 4000));
+    // Vänta på svar (t.ex. 6 sekunder för säkerhets skull)
+    await new Promise(resolve => setTimeout(resolve, 6000));
 
+    // Hämta meddelanden
     const msgRes = await axios.get(`https://api.openai.com/v1/threads/${threadId}/messages`, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`
@@ -47,7 +51,11 @@ app.post('/ask', async (req, res) => {
     });
 
     const message = msgRes.data.data.find(m => m.role === 'assistant');
-    const reply = message?.content?.[0]?.text?.value || "Kunde inte hitta något svar.";
+    let reply = "Kunde inte hämta något svar.";
+
+    if (message?.content?.length > 0 && message.content[0].type === "text") {
+      reply = message.content[0].text.value;
+    }
 
     res.json({ reply });
 
