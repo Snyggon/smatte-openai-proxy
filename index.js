@@ -28,14 +28,14 @@ app.post('/ask', async (req, res) => {
 
     const threadId = threadRes.data.id;
 
-    // Starta run – med rätt header!
+    // Starta run
     await axios.post(`https://api.openai.com/v1/threads/${threadId}/runs`, {
       assistant_id: ASSISTANT_ID
     }, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
-        'OpenAI-Beta': 'assistants=v1'  // <-- detta saknades tidigare!
+        'OpenAI-Beta': 'assistants=v1'
       }
     });
 
@@ -51,7 +51,10 @@ app.post('/ask', async (req, res) => {
     });
 
     const message = msgRes.data.data.find(m => m.role === 'assistant');
+
+    // 🔍 Debug: logga hela GPT-svaret
     console.log("🧠 GPT-svar från OpenAI:", JSON.stringify(message, null, 2));
+
     let reply = "Kunde inte hämta något svar.";
 
     if (message?.content?.length > 0 && message.content[0].type === "text") {
